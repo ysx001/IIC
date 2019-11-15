@@ -114,14 +114,6 @@ def cluster_subheads_eval(config, net,
     best_sub_head = use_sub_head
   else:
     best_sub_head = best_sub_head_eval
-  
-  match = all_matches[best_sub_head]
-  if isinstance(match, torch.Tensor):
-    if match.is_cuda:
-      match = match.cpu()
-    match = match.numpy()
-    savemat(osp.join(config.out_dir, "match") + "_latest.mat", \
-          mdict={'match': match})
 
   if config.mode == "IID":
     assert (
@@ -236,6 +228,7 @@ def _get_assignment_data_matches(net, mapping_assignment_dataloader, config,
         sys.stdout.flush()
 
       acc = _acc(reordered_preds, flat_targets_all, config.gt_k, verbose)
+      save_preds(config, reordered_preds, flat_predss_all, flat_targets_all)
       all_accs[i] = acc
 
   if just_matches:
@@ -243,6 +236,14 @@ def _get_assignment_data_matches(net, mapping_assignment_dataloader, config,
   else:
     return all_matches, all_accs
 
+def save_preds(config, reordered_preds, flat_predss_all, flat_targets_all):
+  print(type(reordered_preds), type(flat_predss_all), type(flat_targets_all))
+  if isinstance(reordered_preds, torch.Tensor):
+    if reordered_preds.is_cuda:
+      reordered_preds = reordered_preds.cpu()
+    reordered_preds = reordered_preds.numpy()
+    savemat(osp.join(config.out_dir, "pred") + "_latest.mat", \
+          mdict={'reordered_preds': reordered_preds})
 
 def get_subhead_using_loss(config, dataloaders_head_B, net, sobel, lamb,
                            compare=False):

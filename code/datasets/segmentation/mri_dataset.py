@@ -3,6 +3,7 @@ from __future__ import print_function
 import os.path as osp
 import pickle
 from glob import glob
+import csv
 
 import cv2
 import numpy as np
@@ -132,8 +133,8 @@ class _Mri(data.Dataset):
 
     # convert both to channel-first tensor format
     # make them all cuda tensors now, except label, for optimality
-    img1 = torch.from_numpy(img1).permute(2, 0, 1).cuda()
-    img2 = torch.from_numpy(img2).permute(2, 0, 1).cuda()
+    img1_torch = torch.from_numpy(img1).permute(2, 0, 1).cuda()
+    img2_torch = torch.from_numpy(img2).permute(2, 0, 1).cuda()
 
     # (img2) do affine if nec, tf_mat changes
     affine2_to_1 = torch.zeros([2, 3]).to(torch.float32).cuda()  # identity
@@ -142,7 +143,7 @@ class _Mri(data.Dataset):
 
     # (img2) do random flip, tf_mat changes
     if np.random.rand() > self.flip_p:
-      img2 = torch.flip(img2, dims=[2])  # horizontal, along width
+      img2_torch = torch.flip(img2_torch, dims=[2])  # horizontal, along width
 
       # applied affine, then flip, new = flip * affine * coord
       # (flip * affine)^-1 is just flip^-1 * affine^-1.
@@ -153,11 +154,9 @@ class _Mri(data.Dataset):
     if RENDER_DATA:
       sio.savemat(self.out_dir + ("_data_%d.mat" % index), \
                        mdict={("train_data_img1_%d" % index): img1,
-                       ("train_data_img2_%d" % index): img2,
-                       ("train_data_affine2to1_%d" % index): affine2_to_1,
-                       ("train_data_mask_%d" % index)})
+                       ("train_data_img2_%d" % index): img2})
 
-    return img1, img2, affine2_to_1, mask_img1
+    return img1_torch, img2_torch, affine2_to_1, mask_img1
 
   def _prepare_test(self, index, img, label):
     # This returns cpu tensors.
@@ -170,36 +169,24 @@ class _Mri(data.Dataset):
     img = img.astype(np.float32)
     label = label.astype(np.int32)
 
-    # shrink original images, for memory purposes, otherwise no point
-    if self.pre_scale_all:
-      assert (self.pre_scale_factor < 1.)
-      img = cv2.resize(img, dsize=None, fx=self.pre_scale_factor,
-                       fy=self.pre_scale_factor,
-                       interpolation=cv2.INTER_LINEAR)
-      label = cv2.resize(label, dsize=None, fx=self.pre_scale_factor,
-                         fy=self.pre_scale_factor,
-                         interpolation=cv2.INTER_NEAREST)
-
     # center crop to input sz
     img, _ = pad_and_or_crop(img, self.input_sz, mode="centre")
     label, _ = pad_and_or_crop(label, self.input_sz, mode="centre")
 
     img = img.astype(np.float32) / 1.
-    img = torch.from_numpy(img).permute(2, 0, 1)
+    img_torch = torch.from_numpy(img).permute(2, 0, 1)
 
     # convert to coarse if required, reindex to [0, gt_k -1], and get mask
-    label, mask = self._filter_label(label)
 
     mask = torch.ones(self.input_sz, self.input_sz).to(torch.uint8)
 
     if RENDER_DATA:
       sio.savemat(self.out_dir + ("_data_%d.mat" % index), \
                        mdict={("test_data_img_%d" % index): img,
-                       ("test_data_label_post_%d" % index): label,
-                       ("test_data_mask_%d" % index): mask})
+                       ("test_data_label_post_%d" % index): label})
 
     # dataloader must return tensors (conversion forced in their code anyway)
-    return img, torch.from_numpy(label), mask
+    return img_torch, torch.from_numpy(label), mask
 
   def __getitem__(self, index):
     subject_idx = index // NUM_SLICES
@@ -242,7 +229,7 @@ class DiffSeg(_Mri):
     super(DiffSeg, self).__init__(**kwargs)
 
     self.label_idx = {}
-    with open("labelNameCount.csv") as label_counts:
+    with open("code/datasets/segmentation/labelNameCount.csv") as label_counts:
       reader = csv.reader(label_counts)
       for rows in reader:
           label = rows[0]
@@ -269,9 +256,9 @@ class DiffSeg(_Mri):
     image = image_mat["imgs"][:,:,slice_idx,:]
     # using the aparc final FreeSurfer segmentation results
     label = image_mat["segs"][:, :, slice_idx, 1]
-    
+
     for i in range(len(label)):
       for j in range(len(label[0])):
-          label[i, j] = self.label_idx[label[i, j]]
+          label[i, j] = self.label_idx[str(label[i, j])]
 
     return image, label

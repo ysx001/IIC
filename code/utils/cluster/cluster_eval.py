@@ -6,6 +6,9 @@ from datetime import datetime
 
 import numpy as np
 import torch
+import os.path as osp
+from scipy.io import savemat
+
 
 from .IID_losses import IID_loss
 from .eval_metrics import _hungarian_match, _original_match, _acc
@@ -111,6 +114,14 @@ def cluster_subheads_eval(config, net,
     best_sub_head = use_sub_head
   else:
     best_sub_head = best_sub_head_eval
+  
+  match = all_matches[best_sub_head]
+  if isinstance(match, torch.Tensor):
+    if match.is_cuda:
+      match = match.cpu()
+    match = match.numpy()
+    savemat(osp.join(config.out_dir, "match") + "_latest.mat", \
+          mdict={'match': match})
 
   if config.mode == "IID":
     assert (

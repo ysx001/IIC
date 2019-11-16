@@ -62,34 +62,9 @@ class _Mri(data.Dataset):
 
   def _prepare_train(self, index, img, label):
     # This returns gpu tensors.
-    # label is passed in canonical [0 ... 181] indexing
+    img_torch, label, mask = self._prepare_test(index, img, label)
 
-    # print (img.shape[:2], label.shape)
-    img = img.astype(np.float32)
-    label = label.astype(np.int32)
-
-    # random crop to input sz
-    img, coords = pad_and_or_crop(img, self.input_sz, mode="centre")
-    label, _ = pad_and_or_crop(label, self.input_sz, mode="centre",
-                               coords=coords)
-
-    # uint8 tensor as masks should be binary, also for consistency with
-    # prepare_train, but converted to float32 in main loop because is used
-    # multiplicatively in loss
-<<<<<<< HEAD
-    mask_img1 = torch.ones(self.input_sz, self.input_sz).to(torch.uint8).cuda()
-=======
-    mask = torch.ones(self.input_sz, self.input_sz).to(torch.uint8)
->>>>>>> bdca61a05ac751816eb1468868b81ce8ccfd81f8
-
-    img1 = img.astype(np.float32) / 1.
-    img2 = img.astype(np.float32) / 1.
-
-    # convert both to channel-first tensor format
-    # make them all cuda tensors now, except label, for optimality
-    img1_torch = torch.from_numpy(img1).permute(2, 0, 1).cuda()
-    img2_torch = torch.from_numpy(img2).permute(2, 0, 1).cuda()
-
+    img2_torch = img_torch
     # (img2) do affine if nec, tf_mat changes
     affine2_to_1 = torch.zeros([2, 3]).to(torch.float32).cuda()  # identity
     affine2_to_1[0, 0] = 1
@@ -105,12 +80,7 @@ class _Mri(data.Dataset):
       # hence top row is negated
       affine2_to_1[0, :] *= -1.
 
-    if RENDER_DATA:
-      sio.savemat(self.out_dir + ("_data_%d.mat" % index), \
-                       mdict={("train_data_img1_%d" % index): img1,
-                       ("train_data_img2_%d" % index): img2})
-
-    return img1_torch, img2_torch, affine2_to_1, mask
+    return img_torch, img2_torch, affine2_to_1, mask
 
   def _prepare_test(self, index, img, label):
     # This returns cpu tensors.

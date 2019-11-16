@@ -73,16 +73,6 @@ class _Mri(data.Dataset):
     img = img.astype(np.float32)
     label = label.astype(np.int32)
 
-    # basic augmentation transforms for both img1 and img2
-    if self.use_random_scale:
-      # bilinear interp requires float img
-      scale_factor = (np.random.rand() * (self.scale_max - self.scale_min)) + \
-                     self.scale_min
-      img = cv2.resize(img, dsize=None, fx=scale_factor, fy=scale_factor,
-                       interpolation=cv2.INTER_LINEAR)
-      label = cv2.resize(label, dsize=None, fx=scale_factor, fy=scale_factor,
-                         interpolation=cv2.INTER_NEAREST)
-
     # random crop to input sz
     img, coords = pad_and_or_crop(img, self.input_sz, mode="random")
     label, _ = pad_and_or_crop(label, self.input_sz, mode="fixed",
@@ -92,18 +82,6 @@ class _Mri(data.Dataset):
     # prepare_train, but converted to float32 in main loop because is used
     # multiplicatively in loss
     mask_img1 = torch.ones(self.input_sz, self.input_sz).to(torch.uint8).cuda()
-
-    # make img2 different from img1 (img)
-
-    # no need to tf label, as we're doing option A, mask needed in img1 space
-
-    # converting to PIL does not change underlying np datatype it seems
-    # img1 = Image.fromarray(img.astype(np.uint8))
-
-    # (img2) do jitter, no tf_mat change
-    # img2 = self.jitter_tf(img1)  # not in place, new memory
-    # img1 = np.array(img1)
-    # img2 = np.array(img2)
 
     img1 = img.astype(np.float32) / 1.
     img2 = img.astype(np.float32) / 1.

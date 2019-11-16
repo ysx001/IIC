@@ -73,16 +73,6 @@ class _Mri(data.Dataset):
     img = img.astype(np.float32)
     label = label.astype(np.int32)
 
-    # basic augmentation transforms for both img1 and img2
-    if self.use_random_scale:
-      # bilinear interp requires float img
-      scale_factor = (np.random.rand() * (self.scale_max - self.scale_min)) + \
-                     self.scale_min
-      img = cv2.resize(img, dsize=None, fx=scale_factor, fy=scale_factor,
-                       interpolation=cv2.INTER_LINEAR)
-      label = cv2.resize(label, dsize=None, fx=scale_factor, fy=scale_factor,
-                         interpolation=cv2.INTER_NEAREST)
-
     # random crop to input sz
     img, coords = pad_and_or_crop(img, self.input_sz, mode="random")
     label, _ = pad_and_or_crop(label, self.input_sz, mode="fixed",
@@ -93,40 +83,8 @@ class _Mri(data.Dataset):
     # multiplicatively in loss
     mask_img1 = torch.ones(self.input_sz, self.input_sz).to(torch.uint8).cuda()
 
-    # make img2 different from img1 (img)
-
-    # tf_mat can be:
-    # *A, from img2 to img1 (will be applied to img2's heatmap)-> img1 space
-    #   input img1 tf: *tf.functional or pil.image
-    #   input mask tf: *none
-    #   output heatmap: *tf.functional (parallel), inverse of what is used
-    #     for inputs, create inverse of this tf in [-1, 1] format
-
-    # B, from img1 to img2 (will be applied to img1's heatmap)-> img2 space
-    #   input img1 tf: pil.image
-    #   input mask tf: pil.image (discrete)
-    #   output heatmap: tf.functional, create copy of this tf in [-1,1] format
-
-    # tf.function tf_mat: translation is opposite to what we'd expect (+ve 1
-    # is shift half towards left)
-    # but rotation is correct (-sin in top right = counter clockwise)
-
-    # flip is [[-1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    # img2 = flip(affine1_to_2(img1))
-    # => img1_space = affine1_to_2^-1(flip^-1(img2_space))
-    #               = affine2_to_1(flip^-1(img2_space))
-    # so tf_mat_img2_to_1 = affine2_to_1 * flip^-1 (order matters as not diag)
-    # flip^-1 = flip
-
-    # no need to tf label, as we're doing option A, mask needed in img1 space
-
-    # converting to PIL does not change underlying np datatype it seems
-    img1 = Image.fromarray(img.astype(np.uint8))
-
-    # (img2) do jitter, no tf_mat change
-    img2 = self.jitter_tf(img1)  # not in place, new memory
-    img1 = np.array(img1)
-    img2 = np.array(img2)
+    img1 = np.array(img)
+    img2 = np.array(img)
 
     img1 = img1.astype(np.float32) / 1.
     img2 = img2.astype(np.float32) / 1.

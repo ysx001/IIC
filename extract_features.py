@@ -111,7 +111,7 @@ if __name__=="__main__":
     # 90 slices per subject
     # 4 channels, each channel representing b=0, dwi, md and fa
     image = image_mat["imgs"][:,:,slice_idx,:]
-    img = pad_and_or_crop(image, TARGET_IMG_SIZE, mode="centre")
+    img, _  = pad_and_or_crop(image, TARGET_IMG_SIZE, mode="centre")
     print(img.shape)
 
     tmp = extract_feature(model, img)

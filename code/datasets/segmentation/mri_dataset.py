@@ -46,11 +46,6 @@ class _Mri(data.Dataset):
       if self.use_random_scale:
         self.scale_max = config.scale_max
         self.scale_min = config.scale_min
-      self.jitter_tf = tvt.ColorJitter(brightness=config.jitter_brightness,
-                                       contrast=config.jitter_contrast,
-                                       saturation=config.jitter_saturation,
-                                       hue=config.jitter_hue)
-
       self.flip_p = config.flip_p  # 0.5
     elif purpose == "test":
       self.out_dir = osp.join(osp.join(config.out_root, str(config.model_ind)), "test")
@@ -81,7 +76,11 @@ class _Mri(data.Dataset):
     # uint8 tensor as masks should be binary, also for consistency with
     # prepare_train, but converted to float32 in main loop because is used
     # multiplicatively in loss
+<<<<<<< HEAD
     mask_img1 = torch.ones(self.input_sz, self.input_sz).to(torch.uint8).cuda()
+=======
+    mask = torch.ones(self.input_sz, self.input_sz).to(torch.uint8)
+>>>>>>> bdca61a05ac751816eb1468868b81ce8ccfd81f8
 
     img1 = img.astype(np.float32) / 1.
     img2 = img.astype(np.float32) / 1.
@@ -111,7 +110,7 @@ class _Mri(data.Dataset):
                        mdict={("train_data_img1_%d" % index): img1,
                        ("train_data_img2_%d" % index): img2})
 
-    return img1_torch, img2_torch, affine2_to_1, mask_img1
+    return img1_torch, img2_torch, affine2_to_1, mask
 
   def _prepare_test(self, index, img, label):
     # This returns cpu tensors.

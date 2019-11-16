@@ -69,8 +69,8 @@ class _Mri(data.Dataset):
     label = label.astype(np.int32)
 
     # random crop to input sz
-    img, coords = pad_and_or_crop(img, self.input_sz, mode="random")
-    label, _ = pad_and_or_crop(label, self.input_sz, mode="fixed",
+    img, coords = pad_and_or_crop(img, self.input_sz, mode="centre")
+    label, _ = pad_and_or_crop(label, self.input_sz, mode="centre",
                                coords=coords)
 
     # uint8 tensor as masks should be binary, also for consistency with

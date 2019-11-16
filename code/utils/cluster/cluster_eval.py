@@ -249,7 +249,8 @@ def save_preds(config, reordered_preds, flat_predss_all, flat_targets_all):
 
   savemat(osp.join(config.out_dir, "pred") + "_latest.mat", \
           mdict={'reordered_preds': reordered_preds,
-              'flat_targets_all': flat_targets_all})
+              'flat_targets_all': flat_targets_all
+              "flat_predss_all": flat_targets_all})
 
 def get_subhead_using_loss(config, dataloaders_head_B, net, sobel, lamb,
                            compare=False):

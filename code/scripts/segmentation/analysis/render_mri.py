@@ -200,6 +200,7 @@ for model_ind in model_inds:
         sio.savemat(net_name_outdir + "output.mat", \
           mdict={'orig_imgs': orig_imgs, 'imgs':imgs, 'flat_preds': flat_preds, \
             'reordered_preds': reordered_preds, 'flat_targets':flat_targets})
+        break
 
       #   render(flat_preds, mode="preds", name=("%d_raw_preds" % model_ind),
       #          offset=next_img_ind,

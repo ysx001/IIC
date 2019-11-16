@@ -242,8 +242,14 @@ def save_preds(config, reordered_preds, flat_predss_all, flat_targets_all):
     if reordered_preds.is_cuda:
       reordered_preds = reordered_preds.cpu()
     reordered_preds = reordered_preds.numpy()
-    savemat(osp.join(config.out_dir, "pred") + "_latest.mat", \
-          mdict={'reordered_preds': reordered_preds})
+  if isinstance(flat_targets_all, torch.Tensor):
+    if flat_targets_all.is_cuda:
+      flat_targets_all = flat_targets_all.cpu()
+    flat_targets_all = flat_targets_all.numpy()
+
+  savemat(osp.join(config.out_dir, "pred") + "_latest.mat", \
+          mdict={'reordered_preds': reordered_preds,
+              'flat_targets_all': flat_targets_all})
 
 def get_subhead_using_loss(config, dataloaders_head_B, net, sobel, lamb,
                            compare=False):

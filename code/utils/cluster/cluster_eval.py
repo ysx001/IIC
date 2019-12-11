@@ -6,6 +6,9 @@ from datetime import datetime
 
 import numpy as np
 import torch
+import os.path as osp
+from scipy.io import savemat
+
 
 from .IID_losses import IID_loss
 from .eval_metrics import _hungarian_match, _original_match, _acc
@@ -225,6 +228,7 @@ def _get_assignment_data_matches(net, mapping_assignment_dataloader, config,
         sys.stdout.flush()
 
       acc = _acc(reordered_preds, flat_targets_all, config.gt_k, verbose)
+      save_preds(config, reordered_preds, flat_predss_all, flat_targets_all)
       all_accs[i] = acc
 
   if just_matches:
@@ -232,6 +236,21 @@ def _get_assignment_data_matches(net, mapping_assignment_dataloader, config,
   else:
     return all_matches, all_accs
 
+def save_preds(config, reordered_preds, flat_predss_all, flat_targets_all):
+  print(type(reordered_preds), type(flat_predss_all), type(flat_targets_all))
+  if isinstance(reordered_preds, torch.Tensor):
+    if reordered_preds.is_cuda:
+      reordered_preds = reordered_preds.cpu()
+    reordered_preds = reordered_preds.numpy()
+  if isinstance(flat_targets_all, torch.Tensor):
+    if flat_targets_all.is_cuda:
+      flat_targets_all = flat_targets_all.cpu()
+    flat_targets_all = flat_targets_all.numpy()
+
+  savemat(osp.join(config.out_dir, "pred") + "_latest.mat", \
+          mdict={'reordered_preds': reordered_preds,
+              'flat_targets_all': flat_targets_all
+              "flat_predss_all": flat_targets_all})
 
 def get_subhead_using_loss(config, dataloaders_head_B, net, sobel, lamb,
                            compare=False):

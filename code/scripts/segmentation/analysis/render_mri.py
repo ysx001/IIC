@@ -1,18 +1,19 @@
 import argparse
 import os
 import pickle
-import sys
+import 
 from datetime import datetime
 
 import numpy as np
 import torch
+import scipy.io as sio
+
 
 import code.archs as archs
 from code.utils.cluster.cluster_eval import \
   _get_assignment_data_matches
 from code.utils.cluster.transforms import sobel_process
-from code.utils.segmentation.data import make_Coco_dataloaders, \
-  make_Potsdam_dataloaders
+from code.datasets.segmentation.mri_dataloader import segmentation_create_dataloaders
 from code.utils.segmentation.render import render
 from code.utils.segmentation.segmentation_eval import \
   _segmentation_get_data, segmentation_eval
@@ -41,7 +42,7 @@ reassess_acc = args.reassess_acc
 print("imgs_dataloaders passed:")
 print(args.imgs_dataloaders)
 
-out_root = "/bmrNAS/people/yuxinh/cocostuff/out"
+out_root = "/home/yuxinh/dl_seg/IIC/out"
 
 for model_ind in model_inds:
   out_dir = os.path.join(out_root, str(model_ind))
@@ -56,35 +57,12 @@ for model_ind in model_inds:
   if not hasattr(config, "use_doersch_datasets"):
     config.use_doersch_datasets = False
 
-  if "Coco" in config.dataset:
+  if "DiffSeg" in config.dataset:
     dataloaders_train, mapping_assignment_dataloader, mapping_test_dataloader \
-      = make_Coco_dataloaders(config)
-    all_label_names = [
-      "sky-stuff",
-      "plant-stuff",
-      "ground-stuff",
-    ]
+      = segmentation_create_dataloaders(config)
+    # all_label_names = [str(x) + "L" for x in range(config.gt_k)]
 
-    if config.include_things_labels:
-      all_label_names += ["person-things"]
-    if config.incl_animal_things:
-      all_label_names += ["animal-things"]
-  elif config.dataset == "Potsdam":
-    dataloaders_train, mapping_assignment_dataloader, mapping_test_dataloader \
-      = make_Potsdam_dataloaders(config)
-    if config.use_coarse_labels:
-      all_label_names = ["roads and cars",
-                         "buildings and clutter",
-                         "vegetation and trees"]
-    else:
-      all_label_names = ["roads",
-                         "buildings",
-                         "vegetation",
-                         "trees",
-                         "cars",
-                         "clutter"]
-
-  assert (len(all_label_names) == config.gt_k)
+  # assert (len(all_label_names) == config.gt_k)
 
   print("dataloader sizes: %d %d %d" % (len(dataloaders_train[0]),
                                         len(mapping_assignment_dataloader),
@@ -111,7 +89,7 @@ for model_ind in model_inds:
       model_path = os.path.join(config.out_dir, net_name)
       print("getting model path %s " % model_path)
       net.load_state_dict(
-        torch.load(model_path, map_location=lambda storage, loc: storage)['net'])
+        torch.load(model_path, map_location=lambda storage, loc: storage)["net"])
       net.cuda()
       net = torch.nn.DataParallel(net)
       net.module.eval()
@@ -144,23 +122,13 @@ for model_ind in model_inds:
       match = all_matches[head_i]
       print("got best head %d %s" % (head_i, datetime.now()))
       print("best match %s" % str(match))
-
+        
+      sio.savemat(net_name_outdir + "match.mat", \
+                       mdict={'match': match})
       if args.get_match_only:
         exit(0)
 
-      colour_map_raw = [(np.random.rand(3) * 255.).astype(np.uint8)
-                        for _ in xrange(max(config.output_k, config.gt_k))]
 
-      # coco: green (veg) (7, 130, 42), blue (sky) (39, 159, 216),
-      # grey (road) (82, 91, 96), red (person - if used) (229, 57, 57)
-      if "Coco" in config.dataset:
-        colour_map_gt = [np.array([39, 159, 216], dtype=np.uint8),
-                         np.array([7, 130, 42], dtype=np.uint8),
-                         np.array([82, 91, 96], dtype=np.uint8),
-                         np.array([229, 57, 57], dtype=np.uint8)
-                         ]
-      else:
-        colour_map_gt = colour_map_raw
 
       # render first batch
       predicted_all = [0 for _ in xrange(config.gt_k)]
@@ -211,20 +179,9 @@ for model_ind in model_inds:
         flat_targets[masked] = -1  # not in colourmaps, hence will be black
 
         assert (reordered_preds.max() < config.gt_k)
-        assert (flat_targets.max() < config.gt_k)
+        print(flat_targets.max(), config.gt_k)        
+        #assert (flat_targets.max() <= config.gt_k)
 
-        # print iou per class
-        for c in xrange(config.gt_k):
-          preds = (reordered_preds == c)
-          targets = (flat_targets == c)
-
-          predicted = preds.sum()
-          correct = (preds * targets).sum()
-          all = ((preds + targets) >= 1).sum()
-
-          predicted_all[c] += predicted
-          correct_all[c] += correct
-          all_all[c] += all
 
         if next_img_ind >= num:
           print("not rendering batch")
@@ -240,46 +197,32 @@ for model_ind in model_inds:
         reordered_preds = reordered_preds[relevant_inds, :, :]
         flat_targets = flat_targets[relevant_inds, :, :]
 
-        if "Coco" in config.dataset:
-          # blue and red channels are swapped
-          orig_imgs_swapped = torch.zeros(orig_imgs.shape,
-                                          dtype=orig_imgs.dtype)
-          orig_imgs_swapped[:, 0, :, :] = orig_imgs[:, 2, :, :]
-          orig_imgs_swapped[:, 1, :, :] = orig_imgs[:, 1, :, :]
-          orig_imgs_swapped[:, 2, :, :] = orig_imgs[:, 0, :, :]  # ignore others
-          render(orig_imgs_swapped, mode="image", name=("%d_img" % model_ind),
-                 offset=next_img_ind,
-                 out_dir=net_name_outdir)
-          render(imgs, mode="image_as_feat", name=("%d_img_feat" % model_ind),
-                 offset=next_img_ind,
-                 out_dir=net_name_outdir)
+        sio.savemat(net_name_outdir + "output.mat", \
+          mdict={'orig_imgs': orig_imgs, 'imgs':imgs, 'flat_preds': flat_preds, \
+            'reordered_preds': reordered_preds, 'flat_targets':flat_targets})
+        break
 
-        elif "Potsdam" in config.dataset:
-          render(orig_imgs, mode="image_ir", name=("%d_img" % model_ind),
-                 offset=next_img_ind,
-                 out_dir=net_name_outdir)
+      #   render(flat_preds, mode="preds", name=("%d_raw_preds" % model_ind),
+      #          offset=next_img_ind,
+      #          colour_map=colour_map_raw,
+      #          out_dir=net_name_outdir)
+      #   render(reordered_preds, mode="preds",
+      #          name=("%d_reordered_preds" % model_ind),
+      #          offset=next_img_ind,
+      #          colour_map=colour_map_gt,
+      #          out_dir=net_name_outdir)
+      #   render(flat_targets, mode="preds", name=("%d_targets" % model_ind),
+      #          offset=next_img_ind,
+      #          colour_map=colour_map_gt,
+      #          out_dir=net_name_outdir)
 
-        render(flat_preds, mode="preds", name=("%d_raw_preds" % model_ind),
-               offset=next_img_ind,
-               colour_map=colour_map_raw,
-               out_dir=net_name_outdir)
-        render(reordered_preds, mode="preds",
-               name=("%d_reordered_preds" % model_ind),
-               offset=next_img_ind,
-               colour_map=colour_map_gt,
-               out_dir=net_name_outdir)
-        render(flat_targets, mode="preds", name=("%d_targets" % model_ind),
-               offset=next_img_ind,
-               colour_map=colour_map_gt,
-               out_dir=net_name_outdir)
+      #   next_img_ind += num_imgs_curr
 
-        next_img_ind += num_imgs_curr
+      #   print("... rendered batch %d, next_img_ind %d " % (b_i, next_img_ind))
+      #   sys.stdout.flush()
 
-        print("... rendered batch %d, next_img_ind %d " % (b_i, next_img_ind))
-        sys.stdout.flush()
-
-      for c in xrange(config.gt_k):
-        iou = correct_all[c] / float(all_all[c])
-        print("class %d: name %s: pred %d correct %d all %d %f iou" %
-              (c, all_label_names[c], predicted_all[c], correct_all[c],
-               all_all[c], iou))
+      # for c in xrange(config.gt_k):
+      #   iou = correct_all[c] / float(all_all[c])
+      #   print("class %d: name %s: pred %d correct %d all %d %f iou" %
+      #         (c, all_label_names[c], predicted_all[c], correct_all[c],
+      #          all_all[c], iou))

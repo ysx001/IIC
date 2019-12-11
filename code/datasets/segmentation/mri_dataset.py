@@ -164,7 +164,7 @@ class DiffSeg(_Mri):
 
   def _set_files(self):
     if self.split in ["all"]:
-      subjects = sorted(glob(osp.join(self.root, 'mwu*')))
+      subjects = sorted(glob(osp.join(self.root, 'mwu100307')))
       # print(len(subjects))
       self.files = subjects
     else:

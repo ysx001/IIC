@@ -2,6 +2,7 @@ import os
 import numpy as np
 import scipy.io as sio
 from glob import glob
+from sklearn.decomposition import PCA
 
 import torch
 import torch.nn
@@ -44,7 +45,11 @@ if __name__=="__main__":
         # subject_id = subjects[0]
         model=make_model()
         tmp = extract_feature(model, os.path.join(imgpath, subject_id))
+        pca = PCA()
+        pca.fit(tmp)
         print(tmp.shape)
+        print(pca.explained_variance_ratio_)
+        
         sio.savemat(os.path.join(imgpath, "features_") + str(idx) + ".mat", \
           mdict={'features': tmp})
         idx += 1

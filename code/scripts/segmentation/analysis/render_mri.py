@@ -1,7 +1,7 @@
 import argparse
 import os
 import pickle
-import sys
+import 
 from datetime import datetime
 
 import numpy as np

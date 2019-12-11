@@ -6,29 +6,13 @@ import os.path as osp
 
 root = '/home/sarah/DiffSeg-Data/'
 
-label_names = {}
-with open("/home/sarah/IIC/code/datasets/segmentation/FreeSurferColorLUT.txt") as f:
-    for line in f:
-        vals = line.split()
-        if len(vals) > 2 and vals[0].isdigit():
-            label_names[vals[0]] = vals[1]
+subjects = sorted(glob(osp.join(root, 'mwu*')))
+print(len(subjects))
 
-import csv
-
-w = csv.writer(open(osp.join(root, "labelNameCount.csv"), "w"))
-index = 0
-with open(osp.join(root, "labels.csv")) as label_counts:
-    reader = csv.reader(label_counts)
-    for rows in reader:
-        label = rows[0]
-        count = rows[1]
-        name = label_names[label]
-        w.writerow([label, index, count, name])
-        index += 1
-
+# %% Write the labels acutally in data to labels.csv
 # subjects = sorted(glob(osp.join(root, 'mwu*')))
 
-# actual_labels = {}
+# actual_labels = {} # key: labels, value: counts
 # for subject_id in subjects:
 #     image_mat = loadmat(osp.join(root, subject_id, "data.mat"))
 #     for s in range(image_mat['segs'].shape[2]):
@@ -47,6 +31,59 @@ with open(osp.join(root, "labels.csv")) as label_counts:
 
 # print(len(actual_labels))
 # print(actual_labels)
+
+# %% Read the names of the labels and write them together with counts
+# label_names = {}
+# count = 0
+# with open("/home/sarah/IIC/code/datasets/segmentation/FreeSurferColorLUT.txt") as f:
+#     for line in f:
+#         vals = line.split()
+#         if len(vals) > 2 and vals[0].isdigit():
+#             count+=1
+#             label_names[vals[0]] = vals[1]
+
+# print (count)
+# import csv
+
+# w = csv.writer(open(osp.join(root, "labelNameCount.csv"), "w"))
+# index = 0
+# with open(osp.join(root, "labels.csv")) as label_counts:
+#     reader = csv.reader(label_counts)
+#     for rows in reader:
+#         label = rows[0]
+#         count = rows[1]
+#         name = label_names[label]
+#         w.writerow([label, index, count, name])
+#         index += 1
+
+# %% Read the names of the labels and write them together with counts while combining based on category
+label_names = {}
+count = 0
+with open("/home/sarah/IIC/code/datasets/segmentation/FreeSurferColorLUT.txt") as f:
+    for line in f:
+        vals = line.split()
+        if len(vals) > 2 and vals[0].isdigit():
+            count+=1
+            label_names[vals[0]] = vals[1]
+
+print (count)
+import csv
+
+w = csv.writer(open(osp.join(root, "combinedLabels.csv"), "w"))
+index = 0
+wm = [2, 41, 77, 7, 46]
+wm.append(range(251, 256))
+
+with open(osp.join(root, "labels.csv")) as label_counts:
+    reader = csv.reader(label_counts)
+    for rows in reader:
+        label = rows[0]
+        count = rows[1]
+        name = label_names[label]
+        w.writerow([label, index, count, name])
+        index += 1
+
+
 
 # import matplotlib.pyplot as plt
 # f, axarr = plt.subplots(3,2)

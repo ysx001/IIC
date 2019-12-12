@@ -44,7 +44,7 @@ def make_model():
             model.layer1, model.layer2, model.layer3, model.layer4,
             model.avgpool)
     model = model[:ALL_MODEL_FEATURES[MODEL_IDX]]
-    # model.cuda()
+    model.cuda()
     return model
 
 

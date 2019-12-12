@@ -36,13 +36,17 @@ def _hungarian_match(flat_preds, flat_targets, num_k):
     match_dict = {}
     for out_c, gt_c in match:
         match_dict[out_c] = gt_c
+    print(match_dict)
     return match_dict
 
 def _dice(im1, im2, numk):
-	result = [0] * numk
-	for k in range(numk):
-		result[k] = np.sum(im1[im2==k]==k)*2.0 / (np.sum(im1[im1==k]==k) + np.sum(im2[im2==k]==k))
-	return result
+    result = [0] * numk
+    for k in range(numk):
+        print(k)
+        print("Numerator: ", np.sum(im1[im2==k]==k) * 2.0)
+        print(("Denomator: ", np.sum(im1[im1==k]==k) + np.sum(im2[im2==k]==k)))
+        result[k] = np.sum(im1[im2==k]==k) * 2.0 / (np.sum(im1[im1==k]==k) + np.sum(im2[im2==k]==k))
+    return result
 
 def reorder(pred, match_dict):
     reordered_pred = copy(pred)
@@ -84,7 +88,7 @@ k_means_classes = 5
 
 dice_mat = np.zeros((len(subjects), 90, 6, 5))
 acc_mat = np.zeros((len(subjects), 90, 6))
-heatMap = np.zeros((90, 108, 90, 6, 5))
+heatMap = np.zeros((80, 98, 90, 6, 5))
 sliceCount = 0 
 
 subj_idx = 0
@@ -94,6 +98,7 @@ for subject_id in subjects:
     sliceCount += image_mat['m0'].shape[2]
     for s in range(image_mat['m0'].shape[2]):
         target = image_mat['m0'][:, :, s]
+        target_crop = target[4: 84, 5:103]
         preds = []
         preds.append(image_mat['m1'][:, :, s] - 1)         
         preds.append(image_mat['m2'][:, :, s] - 1)
@@ -103,15 +108,23 @@ for subject_id in subjects:
         preds.append(image_mat['m6'][:, :, s] - 1)
         p_idx = 0
         for pred in preds:
-            reordered_pred = reorder(pred, _hungarian_match(pred.flatten(), target.flatten(), 5))
-            acc = int((reordered_pred.flatten() == target.flatten()).sum()) / float(target.flatten().shape[0])
-            dice = _dice(reordered_pred, target, k_means_classes)
-            dice_mat[subj_idx, s, p_idx] = dice
-            acc_mat[subj_idx, s, p_idx] = acc
+            pred_crop = pred[4:84, 5:103]
+            reordered_pred_crop = reorder(pred_crop, _hungarian_match(pred_crop.flatten(), target_crop.flatten(), 5))
+            # reordered_pred = reorder(pred, _hungarian_match(pred.flatten(), target.flatten(), 5))
+            print(reordered_pred_crop.shape, target_crop.shape)
+            # print(reordered_pred.shape, target.shape)
+            acc_crop = int((reordered_pred_crop.flatten() == target_crop.flatten()).sum()) / float(target_crop.flatten().shape[0])
+            # acc = int((reordered_pred.flatten() == target.flatten()).sum()) / float(target.flatten().shape[0])
+            # print(acc, acc_crop)
+            dice_crop = _dice(reordered_pred_crop, target_crop, k_means_classes)
+            # dice = _dice(reordered_pred, target, k_means_classes)
+            dice_mat[subj_idx, s, p_idx] = dice_crop
+            acc_mat[subj_idx, s, p_idx] = acc_crop
             for labelId in range(5):
-                heatMap[:, :, s, p_idx, labelId] += np.where(reordered_pred == labelId, 1, 0)
+                heatMap[:, :, s, p_idx, labelId] += np.where(reordered_pred_crop == labelId, 1, 0)
             p_idx += 1
     subj_idx += 1
+    break
 
 heatMap = np.sum(heatMap, axis=2)
 heatMap /= (sliceCount * 1.0)

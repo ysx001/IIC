@@ -48,12 +48,12 @@ if __name__=="__main__":
     for subject_id in subjects:
         slices = sorted(glob(osp.join(root, subject_id, 'jpg', "im*")))
         print(slices)
-        # sub_features = np.zeros((256, 32, 32, len(slices)))
-        # for i in range(len(slices)):
-        #     tmp = extract_feature(model, slices[i])
-        #     sub_features[:, :, :, i] = tmp
-        #     print(tmp.shape, sub_features.shape)
-        #     print(tmp.min(), tmp.max(), sub_features.min(), sub_features.max())
-        # sio.savemat(osp.join(root, subject_id, "features.mat"), {
-        #     'features': sub_features,
-        # })
+        sub_features = np.zeros((256, 32, 32, len(slices)))
+        for i in range(len(slices)):
+            tmp = extract_feature(model, slices[i])
+            sub_features[:, :, :, i] = tmp
+            print(tmp.shape, sub_features.shape)
+            print(tmp.min(), tmp.max(), sub_features.min(), sub_features.max())
+        sio.savemat(osp.join(root, subject_id, "features.mat"), {
+            'features': sub_features,
+        })

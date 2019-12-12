@@ -146,10 +146,11 @@ def getHeatMap():
 import matplotlib.pyplot as plt
 # heatMap = getHeatMap()
 # heatMap = loadmat(osp.join(root, "heapMap.mat"))
-heatMap = loadmat(osp.join(root, "scores.mat"))
+# heatMap = loadmat(osp.join(root, "scores.mat"))
+heatMap = loadmat("scores.mat")
 
 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-m = 0
+m = 4
 
 ax1.imshow(heatMap['heatMap'][:, :, m, 1])
 ax1.set_title('DeepGreyMatter')
